@@ -96,10 +96,10 @@
     }
 
     .current-icon img {
+        display: block;
         width: 150px;
         height: 150px;
         object-fit: contain;
-        display: block;
     }
 
     /* DETAILS */
@@ -127,8 +127,8 @@
     }
 
     .detail-value {
-        white-space: nowrap;
         font-weight: 400;
+        white-space: nowrap;
     }
 
     /* FORECAST */
@@ -172,10 +172,10 @@
     }
 
     .forecast-icon img {
+        display: block;
         width: 82px;
         height: 82px;
         object-fit: contain;
-        display: block;
     }
 
     .forecast-temp {
@@ -195,6 +195,8 @@
 
 <div class="weather-screen">
 
+    <!-- HEADER -->
+
     <header class="weather-header">
 
         <div class="weather-title">
@@ -207,6 +209,8 @@
 
     </header>
 
+
+    <!-- TODAY -->
 
     <main class="today">
 
@@ -227,61 +231,13 @@
                 </div>
 
 
-                {% assign code = weather.current.weatherCode %}
-                {% assign icon = "overcast" %}
-
-                {% if code == 0 %}
-                    {% assign icon = "clear-day" %}
-
-                {% elsif code == 1 %}
-                    {% assign icon = "partly-cloudy-day" %}
-
-                {% elsif code == 2 %}
-                    {% assign icon = "overcast" %}
-
-                {% elsif code == 3 %}
-                    {% assign icon = "overcast" %}
-
-                {% elsif code == 45 or code == 48 %}
-                    {% assign icon = "fog-day" %}
-
-                {% elsif code == 51 or code == 53 or code == 55 or code == 56 or code == 57 %}
-                    {% assign icon = "drizzle" %}
-
-                {% elsif code == 61 %}
-                    {% assign icon = "drizzle" %}
-
-                {% elsif code == 63 %}
-                    {% assign icon = "rain" %}
-
-                {% elsif code == 65 or code == 66 or code == 67 %}
-                    {% assign icon = "extreme-rain" %}
-
-                {% elsif code == 71 or code == 73 or code == 75 or code == 77 %}
-                    {% assign icon = "snow" %}
-
-                {% elsif code == 80 %}
-                    {% assign icon = "partly-cloudy-day-rain" %}
-
-                {% elsif code == 81 %}
-                    {% assign icon = "rain" %}
-
-                {% elsif code == 82 %}
-                    {% assign icon = "extreme-rain" %}
-
-                {% elsif code == 85 or code == 86 %}
-                    {% assign icon = "snow" %}
-
-                {% elsif code == 95 or code == 96 or code == 99 %}
-                    {% assign icon = "thunderstorms-day-rain" %}
-                {% endif %}
-
-
                 <div class="current-icon">
+
                     <img
-                        src="https://cdn.meteocons.com/latest/svg-static/monochrome/{{ icon }}.svg"
-                        alt="{{ weather.current.weatherLabel }}"
+                        src="{{ weather.current.iconDataUrl }}"
+                        alt=""
                     >
+
                 </div>
 
             </div>
@@ -289,31 +245,52 @@
         </section>
 
 
+        <!-- DETAILS -->
+
         <section class="today-right">
 
             <div class="details">
 
-                <div class="detail-label">Maks</div>
+                <div class="detail-label">
+                    Maks
+                </div>
+
                 <div class="detail-value">
                     {{ weather.today.maxTemp }} °C
                 </div>
 
-                <div class="detail-label">Min</div>
+
+                <div class="detail-label">
+                    Min
+                </div>
+
                 <div class="detail-value">
                     {{ weather.today.minTemp }} °C
                 </div>
 
-                <div class="detail-label">Føles som</div>
+
+                <div class="detail-label">
+                    Føles som
+                </div>
+
                 <div class="detail-value">
                     {{ weather.current.apparentTemperature }} °C
                 </div>
 
-                <div class="detail-label">Vind</div>
+
+                <div class="detail-label">
+                    Vind
+                </div>
+
                 <div class="detail-value">
                     {{ weather.current.windSpeed }} m/s
                 </div>
 
-                <div class="detail-label">Nedbør</div>
+
+                <div class="detail-label">
+                    Nedbør
+                </div>
+
                 <div class="detail-value">
                     {{ weather.today.precipitationMm }} mm
                 </div>
@@ -325,59 +302,11 @@
     </main>
 
 
+    <!-- FORECAST -->
+
     <section class="forecast">
 
         {% for day in weather.forecast %}
-
-            {% assign code = day.weatherCode %}
-            {% assign icon = "overcast" %}
-
-            {% if code == 0 %}
-                {% assign icon = "clear-day" %}
-
-            {% elsif code == 1 %}
-                {% assign icon = "partly-cloudy-day" %}
-
-            {% elsif code == 2 %}
-                {% assign icon = "overcast" %}
-
-            {% elsif code == 3 %}
-                {% assign icon = "overcast" %}
-
-            {% elsif code == 45 or code == 48 %}
-                {% assign icon = "fog-day" %}
-
-            {% elsif code == 51 or code == 53 or code == 55 or code == 56 or code == 57 %}
-                {% assign icon = "drizzle" %}
-
-            {% elsif code == 61 %}
-                {% assign icon = "drizzle" %}
-
-            {% elsif code == 63 %}
-                {% assign icon = "rain" %}
-
-            {% elsif code == 65 or code == 66 or code == 67 %}
-                {% assign icon = "extreme-rain" %}
-
-            {% elsif code == 71 or code == 73 or code == 75 or code == 77 %}
-                {% assign icon = "snow" %}
-
-            {% elsif code == 80 %}
-                {% assign icon = "partly-cloudy-day-rain" %}
-
-            {% elsif code == 81 %}
-                {% assign icon = "rain" %}
-
-            {% elsif code == 82 %}
-                {% assign icon = "extreme-rain" %}
-
-            {% elsif code == 85 or code == 86 %}
-                {% assign icon = "snow" %}
-
-            {% elsif code == 95 or code == 96 or code == 99 %}
-                {% assign icon = "thunderstorms-day-rain" %}
-            {% endif %}
-
 
             <article class="forecast-day">
 
@@ -385,16 +314,21 @@
                     {{ day.dayName }}
                 </div>
 
+
                 <div class="forecast-icon">
+
                     <img
-                        src="https://cdn.meteocons.com/latest/svg-static/monochrome/{{ icon }}.svg"
-                        alt="{{ day.weatherLabel }}"
+                        src="{{ day.iconDataUrl }}"
+                        alt=""
                     >
+
                 </div>
+
 
                 <div class="forecast-temp">
                     {{ day.maxTemp }}° / {{ day.minTemp }}°
                 </div>
+
 
                 <div class="forecast-rain">
                     {{ day.precipitationMm }} mm
