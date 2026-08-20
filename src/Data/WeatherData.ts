@@ -76,11 +76,11 @@ export async function getWeather(): Promise<WeatherData> {
             "wind_speed_10m",
         ].join(","),
         daily: [
-            "weather_code",
-            "temperature_2m_max",
-            "temperature_2m_min",
-            "precipitation_probability_max",
-        ].join(","),
+    "weather_code",
+    "temperature_2m_max",
+    "temperature_2m_min",
+    "precipitation_sum",
+].join(","),
     });
 
     const response = await fetch(
@@ -105,8 +105,8 @@ export async function getWeather(): Promise<WeatherData> {
                 icon: info.icon,
                 maxTemp: Math.round(data.daily.temperature_2m_max[index]),
                 minTemp: Math.round(data.daily.temperature_2m_min[index]),
-                rainChance:
-                    data.daily.precipitation_probability_max[index] ?? 0,
+                precipitationMm:
+    Math.round((data.daily.precipitation_sum[index] ?? 0) * 10) / 10,
             };
         }
     );
