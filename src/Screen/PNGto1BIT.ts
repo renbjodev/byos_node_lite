@@ -13,11 +13,24 @@ export async function PNGto1BIT(image: Buffer) {
         data[i] = bit4Data[i * 4];
     }
 
-    // Fixed dimensions to match the device requirements
-    const DISPLAY_BMP_IMAGE_SIZE = 48062;
-    const targetWidth = 800;
-    const targetHeight = 480;
+    // Use the actual rendered image dimensions
+    const targetWidth = jimpImage.bitmap.width;
+    const targetHeight = jimpImage.bitmap.height;
     const targetPixelCount = targetWidth * targetHeight;
+
+    // BMP layout
+    const bitsPerPixel = 1;
+    const rowSize = Math.floor((targetWidth * bitsPerPixel + 31) / 32) * 4;
+
+    const fileHeaderSize = 14;
+    const infoHeaderSize = 40;
+    const paletteSize = 8;
+
+    const DISPLAY_BMP_IMAGE_SIZE =
+        fileHeaderSize +
+        infoHeaderSize +
+        paletteSize +
+        rowSize * targetHeight;
 
     // Step 2: Process the grayscale image
     const grayscale = new Uint8Array(targetPixelCount);
@@ -64,11 +77,6 @@ export async function PNGto1BIT(image: Buffer) {
     const dithered = atkinsonDithering(grayscale, targetWidth, targetHeight, false);
 
     // BMP file header (14 bytes) + Info header (40 bytes)
-    const fileHeaderSize = 14;
-    const infoHeaderSize = 40;
-    const bitsPerPixel = 1; // 1-bit monochrome
-    const rowSize = Math.floor((targetWidth * bitsPerPixel + 31) / 32) * 4;
-    const paletteSize = 8; // 2 colors * 4 bytes each
     const fileSize = DISPLAY_BMP_IMAGE_SIZE; // Exactly match the expected size
 
     // Create a buffer of exactly the required size
