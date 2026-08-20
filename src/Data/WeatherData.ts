@@ -1,16 +1,22 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+
 export type WeatherDay = {
     date: string;
     dayName: string;
+
     weatherCode: number;
     weatherLabel: string;
+
     iconSvg: string;
+
     maxTemp: number;
     minTemp: number;
+
     precipitationMm: number;
 };
+
 
 export type WeatherData = {
     location: string;
@@ -18,42 +24,58 @@ export type WeatherData = {
     current: {
         temperature: number;
         apparentTemperature: number;
+
         weatherCode: number;
         weatherLabel: string;
+
         iconSvg: string;
+
         windSpeed: number;
     };
 
     today: WeatherDay;
+
     forecast: WeatherDay[];
 };
 
 
-/* ============================================================
-   LOCATION
-   ============================================================ */
+// ============================================================
+// LOCATION
+// ============================================================
 
 const LATITUDE = 59.9512;
 const LONGITUDE = 10.8678;
 
 
-/* ============================================================
-   CACHE
-   ============================================================ */
+// ============================================================
+// CACHE
+// ============================================================
 
-const CACHE_TTL_MS = 10 * 60 * 1000;
+const CACHE_TTL_MS =
+    10 * 60 * 1000;
 
-let cachedWeather: WeatherData | null = null;
+let cachedWeather:
+    WeatherData | null =
+    null;
+
 let cachedAt = 0;
 
-let weatherRequestInProgress: Promise<WeatherData> | null = null;
+let requestInProgress:
+    Promise<WeatherData> | null =
+    null;
 
-const iconCache = new Map<string, string>();
+
+// ============================================================
+// ICON CACHE
+// ============================================================
+
+const iconCache =
+    new Map<string, string>();
 
 
-/* ============================================================
-   OPEN-METEO → LABEL + ICON
-   ============================================================ */
+// ============================================================
+// OPEN-METEO CODE MAPPING
+// ============================================================
 
 function weatherInfo(
     code: number
@@ -97,16 +119,9 @@ function weatherInfo(
         };
     }
 
-    if ([51, 53, 55].includes(code)) {
+    if ([51, 53, 55, 56, 57].includes(code)) {
         return {
             label: "Yr",
-            icon: "drizzle",
-        };
-    }
-
-    if ([56, 57].includes(code)) {
-        return {
-            label: "Underkjølt yr",
             icon: "drizzle",
         };
     }
@@ -132,17 +147,10 @@ function weatherInfo(
         };
     }
 
-    if ([71, 73].includes(code)) {
+    if ([71, 73, 75, 77].includes(code)) {
         return {
             label: "Snø",
             icon: "snow",
-        };
-    }
-
-    if ([75, 77].includes(code)) {
-        return {
-            label: "Kraftig snø",
-            icon: "extreme-snow",
         };
     }
 
@@ -167,30 +175,16 @@ function weatherInfo(
         };
     }
 
-    if (code === 85) {
+    if ([85, 86].includes(code)) {
         return {
             label: "Snøbyger",
-            icon: "partly-cloudy-day-snow",
+            icon: "snow",
         };
     }
 
-    if (code === 86) {
-        return {
-            label: "Kraftige snøbyger",
-            icon: "extreme-snow",
-        };
-    }
-
-    if (code === 95) {
+    if ([95, 96, 99].includes(code)) {
         return {
             label: "Torden",
-            icon: "thunderstorms-day",
-        };
-    }
-
-    if ([96, 99].includes(code)) {
-        return {
-            label: "Torden og regn",
             icon: "thunderstorms-day-rain",
         };
     }
@@ -202,9 +196,9 @@ function weatherInfo(
 }
 
 
-/* ============================================================
-   DAY NAMES
-   ============================================================ */
+// ============================================================
+// DAY NAME
+// ============================================================
 
 function norwegianDay(
     dateString: string
@@ -222,7 +216,8 @@ function norwegianDay(
 
     const date =
         new Date(
-            dateString + "T12:00:00"
+            dateString
+            + "T12:00:00"
         );
 
     return names[
@@ -231,29 +226,33 @@ function norwegianDay(
 }
 
 
-/* ============================================================
-   LOCAL METEOCONS
-   ============================================================ */
+// ============================================================
+// LOCAL METEOCONS
+// ============================================================
 
 async function getMeteoconSvg(
     iconName: string
 ): Promise<string> {
 
     const cached =
-        iconCache.get(iconName);
+        iconCache.get(
+            iconName
+        );
 
     if (cached) {
         return cached;
     }
 
 
-    const iconPath =
+    const path =
         join(
             process.cwd(),
+
             "node_modules",
             "@meteocons",
             "svg-static",
             "monochrome",
+
             `${iconName}.svg`
         );
 
@@ -262,11 +261,14 @@ async function getMeteoconSvg(
 
         let svg =
             await readFile(
-                iconPath,
+                path,
                 "utf8"
             );
 
 
+        /*
+         * Force monochrome SVG to true black.
+         */
         svg =
             svg.replaceAll(
                 "currentColor",
@@ -274,6 +276,9 @@ async function getMeteoconSvg(
             );
 
 
+        /*
+         * Remove optional XML declaration.
+         */
         svg =
             svg.replace(
                 /<\?xml[^>]*\?>/g,
@@ -292,11 +297,18 @@ async function getMeteoconSvg(
     } catch (error) {
 
         console.error(
-            `Failed to load Meteocon "${iconName}"`
+            `Failed to load weather icon "${iconName}"`
         );
 
 
-        if (iconName !== "overcast") {
+        /*
+         * Known-safe fallback.
+         */
+        if (
+            iconName
+            !==
+            "overcast"
+        ) {
 
             return getMeteoconSvg(
                 "overcast"
@@ -305,7 +317,7 @@ async function getMeteoconSvg(
 
 
         console.error(
-            "Could not load Meteocons fallback icon.",
+            "Could not load fallback weather icon.",
             error
         );
 
@@ -315,14 +327,15 @@ async function getMeteoconSvg(
 }
 
 
-/* ============================================================
-   FETCH OPEN-METEO
-   ============================================================ */
+// ============================================================
+// OPEN-METEO
+// ============================================================
 
-async function fetchWeatherFromOpenMeteo(): Promise<WeatherData> {
+async function fetchWeather():
+Promise<WeatherData> {
 
     console.log(
-        "Weather: fetching fresh data from Open-Meteo"
+        "Weather: requesting Open-Meteo"
     );
 
 
@@ -361,10 +374,13 @@ async function fetchWeatherFromOpenMeteo(): Promise<WeatherData> {
         });
 
 
+    const url =
+        "https://api.open-meteo.com/v1/forecast?"
+        + params.toString();
+
+
     const response =
-        await fetch(
-            `https://api.open-meteo.com/v1/forecast?${params.toString()}`
-        );
+        await fetch(url);
 
 
     if (!response.ok) {
@@ -379,9 +395,9 @@ async function fetchWeatherFromOpenMeteo(): Promise<WeatherData> {
         await response.json();
 
 
-    /* --------------------------------------------------------
-       DAILY FORECAST
-       -------------------------------------------------------- */
+    // --------------------------------------------------------
+    // Daily forecast
+    // --------------------------------------------------------
 
     const days:
         WeatherDay[] =
@@ -393,21 +409,13 @@ async function fetchWeatherFromOpenMeteo(): Promise<WeatherData> {
                     index: number
                 ) => {
 
-                    const weatherCode =
+                    const code =
                         data.daily
                             .weather_code[index];
 
 
                     const info =
-                        weatherInfo(
-                            weatherCode
-                        );
-
-
-                    const iconSvg =
-                        await getMeteoconSvg(
-                            info.icon
-                        );
+                        weatherInfo(code);
 
 
                     return {
@@ -419,12 +427,16 @@ async function fetchWeatherFromOpenMeteo(): Promise<WeatherData> {
                                 date
                             ),
 
-                        weatherCode,
+                        weatherCode:
+                            code,
 
                         weatherLabel:
                             info.label,
 
-                        iconSvg,
+                        iconSvg:
+                            await getMeteoconSvg(
+                                info.icon
+                            ),
 
                         maxTemp:
                             Math.round(
@@ -444,19 +456,20 @@ async function fetchWeatherFromOpenMeteo(): Promise<WeatherData> {
                                     data.daily
                                         .precipitation_sum[index]
                                     ?? 0
-                                ) * 10
-                            ) / 10,
+                                )
+                                * 10
+                            )
+                            / 10,
 
                     };
                 }
             )
-
         );
 
 
-    /* --------------------------------------------------------
-       CURRENT WEATHER
-       -------------------------------------------------------- */
+    // --------------------------------------------------------
+    // Current
+    // --------------------------------------------------------
 
     const currentCode =
         data.current
@@ -466,12 +479,6 @@ async function fetchWeatherFromOpenMeteo(): Promise<WeatherData> {
     const currentInfo =
         weatherInfo(
             currentCode
-        );
-
-
-    const currentIconSvg =
-        await getMeteoconSvg(
-            currentInfo.icon
         );
 
 
@@ -501,7 +508,9 @@ async function fetchWeatherFromOpenMeteo(): Promise<WeatherData> {
                 currentInfo.label,
 
             iconSvg:
-                currentIconSvg,
+                await getMeteoconSvg(
+                    currentInfo.icon
+                ),
 
             windSpeed:
                 Math.round(
@@ -524,18 +533,20 @@ async function fetchWeatherFromOpenMeteo(): Promise<WeatherData> {
 }
 
 
-/* ============================================================
-   PUBLIC FUNCTION + CACHE
-   ============================================================ */
+// ============================================================
+// PUBLIC LIVE DATA
+// ============================================================
 
-export async function getWeather(): Promise<WeatherData> {
+export async function getWeather():
+Promise<WeatherData> {
 
     const now =
         Date.now();
 
 
     /*
-     * Fresh cache.
+     * Normal Kindle refreshes within 10 minutes
+     * use the cache.
      */
     if (
         cachedWeather
@@ -546,37 +557,30 @@ export async function getWeather(): Promise<WeatherData> {
     ) {
 
         console.log(
-            "Weather: using cached Open-Meteo data"
+            "Weather: using cached data"
         );
-
 
         return cachedWeather;
     }
 
 
     /*
-     * Prevent duplicate simultaneous requests.
+     * Do not allow parallel requests to hammer
+     * Open-Meteo.
      */
-    if (
-        weatherRequestInProgress
-    ) {
+    if (requestInProgress) {
 
-        console.log(
-            "Weather: waiting for existing Open-Meteo request"
-        );
-
-
-        return weatherRequestInProgress;
+        return requestInProgress;
     }
 
 
-    weatherRequestInProgress =
+    requestInProgress =
         (async () => {
 
             try {
 
                 const weather =
-                    await fetchWeatherFromOpenMeteo();
+                    await fetchWeather();
 
 
                 cachedWeather =
@@ -587,45 +591,267 @@ export async function getWeather(): Promise<WeatherData> {
 
 
                 console.log(
-                    "Weather: fresh Open-Meteo data cached"
+                    "Weather: live data updated"
                 );
 
 
                 return weather;
 
-            } catch (error) {
-
-                console.error(
-                    "Weather: Open-Meteo fetch failed",
-                    error
-                );
-
-
-                /*
-                 * If Open-Meteo temporarily fails
-                 * but we have old data, keep showing it.
-                 */
-                if (cachedWeather) {
-
-                    console.warn(
-                        "Weather: using stale cached weather"
-                    );
-
-
-                    return cachedWeather;
-                }
-
-
-                throw error;
-
             } finally {
 
-                weatherRequestInProgress =
+                requestInProgress =
                     null;
             }
 
         })();
 
 
-    return weatherRequestInProgress;
+    return requestInProgress;
+}
+
+
+// ============================================================
+// STATIC PREVIEW DATA
+// ============================================================
+
+/*
+ * This is ONLY used by /image in your browser.
+ *
+ * It never contacts Open-Meteo.
+ */
+export async function getPreviewWeather():
+Promise<WeatherData> {
+
+    const [
+        clear,
+        partly,
+        overcast,
+        rain,
+        showers,
+        drizzle
+    ] =
+        await Promise.all([
+
+            getMeteoconSvg(
+                "clear-day"
+            ),
+
+            getMeteoconSvg(
+                "partly-cloudy-day"
+            ),
+
+            getMeteoconSvg(
+                "overcast"
+            ),
+
+            getMeteoconSvg(
+                "rain"
+            ),
+
+            getMeteoconSvg(
+                "partly-cloudy-day-rain"
+            ),
+
+            getMeteoconSvg(
+                "drizzle"
+            ),
+
+        ]);
+
+
+    return {
+
+        location:
+            "Kalbakken",
+
+        current: {
+
+            temperature:
+                15,
+
+            apparentTemperature:
+                15,
+
+            weatherCode:
+                0,
+
+            weatherLabel:
+                "Klart",
+
+            iconSvg:
+                clear,
+
+            windSpeed:
+                2,
+
+        },
+
+
+        today: {
+
+            date:
+                "2026-08-20",
+
+            dayName:
+                "TOR",
+
+            weatherCode:
+                0,
+
+            weatherLabel:
+                "Klart",
+
+            iconSvg:
+                clear,
+
+            maxTemp:
+                21,
+
+            minTemp:
+                9,
+
+            precipitationMm:
+                0,
+
+        },
+
+
+        forecast: [
+
+            {
+                date:
+                    "2026-08-21",
+
+                dayName:
+                    "FRE",
+
+                weatherCode:
+                    1,
+
+                weatherLabel:
+                    "For det meste klart",
+
+                iconSvg:
+                    partly,
+
+                maxTemp:
+                    20,
+
+                minTemp:
+                    10,
+
+                precipitationMm:
+                    0,
+            },
+
+
+            {
+                date:
+                    "2026-08-22",
+
+                dayName:
+                    "LØR",
+
+                weatherCode:
+                    2,
+
+                weatherLabel:
+                    "Delvis skyet",
+
+                iconSvg:
+                    overcast,
+
+                maxTemp:
+                    18,
+
+                minTemp:
+                    11,
+
+                precipitationMm:
+                    0.7,
+            },
+
+
+            {
+                date:
+                    "2026-08-23",
+
+                dayName:
+                    "SØN",
+
+                weatherCode:
+                    80,
+
+                weatherLabel:
+                    "Regnbyger",
+
+                iconSvg:
+                    showers,
+
+                maxTemp:
+                    17,
+
+                minTemp:
+                    10,
+
+                precipitationMm:
+                    3.2,
+            },
+
+
+            {
+                date:
+                    "2026-08-24",
+
+                dayName:
+                    "MAN",
+
+                weatherCode:
+                    63,
+
+                weatherLabel:
+                    "Regn",
+
+                iconSvg:
+                    rain,
+
+                maxTemp:
+                    16,
+
+                minTemp:
+                    9,
+
+                precipitationMm:
+                    6.8,
+            },
+
+
+            {
+                date:
+                    "2026-08-25",
+
+                dayName:
+                    "TIR",
+
+                weatherCode:
+                    61,
+
+                weatherLabel:
+                    "Lett regn",
+
+                iconSvg:
+                    drizzle,
+
+                maxTemp:
+                    18,
+
+                minTemp:
+                    10,
+
+                precipitationMm:
+                    1.4,
+            },
+
+        ],
+    };
 }
