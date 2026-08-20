@@ -27,7 +27,7 @@ export async function initPuppeteer() {
     }
     );
     page = await browser.newPage();
-    await page.setViewport({ width: 800, height: 480 });
+    await page.setViewport({ width: 1024, height: 758 });
     await page.setRequestInterception(true);
     page.on('pageerror', (error: any) => console.error('Puppeteer error:', error.message));
     page.on('requestfailed', request => console.log(`Puppeteer failed: ${request.failure()?.errorText} ${request.url()}`));
