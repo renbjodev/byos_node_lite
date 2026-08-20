@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
+import { join } from "node:path";
 
 export type WeatherDay = {
     date: string;
@@ -28,23 +28,42 @@ export type WeatherData = {
     forecast: WeatherDay[];
 };
 
+
 const LATITUDE = 59.9512;
 const LONGITUDE = 10.8678;
 
-const require = createRequire(import.meta.url);
+
+/* ============================================================
+   WEATHER CACHE
+   ============================================================ */
+
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+let cachedWeather: WeatherData | null = null;
+let cachedAt = 0;
+
+/*
+ * Prevent several simultaneous /image requests from each
+ * starting their own Open-Meteo request.
+ */
+let weatherRequestInProgress: Promise<WeatherData> | null = null;
+
+
+/* ============================================================
+   METEOCONS CACHE
+   ============================================================ */
 
 const iconCache = new Map<string, string>();
 
 
-/**
- * Convert Open-Meteo WMO weather codes to
- * labels + Meteocons icon names.
- */
+/* ============================================================
+   WEATHER CODE MAPPING
+   ============================================================ */
+
 function weatherInfo(
     code: number
 ): { label: string; icon: string } {
 
-    // Clear sky
     if (code === 0) {
         return {
             label: "Klart",
@@ -52,7 +71,6 @@ function weatherInfo(
         };
     }
 
-    // Mainly clear
     if (code === 1) {
         return {
             label: "For det meste klart",
@@ -60,7 +78,6 @@ function weatherInfo(
         };
     }
 
-    // Partly cloudy
     if (code === 2) {
         return {
             label: "Delvis skyet",
@@ -68,7 +85,6 @@ function weatherInfo(
         };
     }
 
-    // Overcast
     if (code === 3) {
         return {
             label: "Overskyet",
@@ -76,7 +92,6 @@ function weatherInfo(
         };
     }
 
-    // Fog
     if ([45, 48].includes(code)) {
         return {
             label: "Tåke",
@@ -84,7 +99,6 @@ function weatherInfo(
         };
     }
 
-    // Drizzle
     if ([51, 53, 55].includes(code)) {
         return {
             label: "Yr",
@@ -92,7 +106,6 @@ function weatherInfo(
         };
     }
 
-    // Freezing drizzle
     if ([56, 57].includes(code)) {
         return {
             label: "Underkjølt yr",
@@ -100,7 +113,6 @@ function weatherInfo(
         };
     }
 
-    // Light rain
     if (code === 61) {
         return {
             label: "Lett regn",
@@ -108,7 +120,6 @@ function weatherInfo(
         };
     }
 
-    // Moderate rain
     if (code === 63) {
         return {
             label: "Regn",
@@ -116,7 +127,6 @@ function weatherInfo(
         };
     }
 
-    // Heavy / freezing rain
     if ([65, 66, 67].includes(code)) {
         return {
             label: "Kraftig regn",
@@ -124,7 +134,6 @@ function weatherInfo(
         };
     }
 
-    // Snow
     if ([71, 73].includes(code)) {
         return {
             label: "Snø",
@@ -132,7 +141,6 @@ function weatherInfo(
         };
     }
 
-    // Heavy snow
     if ([75, 77].includes(code)) {
         return {
             label: "Kraftig snø",
@@ -140,7 +148,6 @@ function weatherInfo(
         };
     }
 
-    // Light rain showers
     if (code === 80) {
         return {
             label: "Lette regnbyger",
@@ -148,7 +155,6 @@ function weatherInfo(
         };
     }
 
-    // Moderate rain showers
     if (code === 81) {
         return {
             label: "Regnbyger",
@@ -156,7 +162,6 @@ function weatherInfo(
         };
     }
 
-    // Heavy rain showers
     if (code === 82) {
         return {
             label: "Kraftige regnbyger",
@@ -164,7 +169,6 @@ function weatherInfo(
         };
     }
 
-    // Snow showers
     if (code === 85) {
         return {
             label: "Snøbyger",
@@ -179,7 +183,6 @@ function weatherInfo(
         };
     }
 
-    // Thunder
     if (code === 95) {
         return {
             label: "Torden",
@@ -187,7 +190,6 @@ function weatherInfo(
         };
     }
 
-    // Thunder + precipitation
     if ([96, 99].includes(code)) {
         return {
             label: "Torden og regn",
@@ -202,10 +204,12 @@ function weatherInfo(
 }
 
 
-/**
- * Norwegian weekday abbreviation.
- */
+/* ============================================================
+   DAY NAMES
+   ============================================================ */
+
 function norwegianDay(dateString: string): string {
+
     const names = [
         "SØN",
         "MAN",
@@ -224,14 +228,10 @@ function norwegianDay(dateString: string): string {
 }
 
 
-/**
- * Load a static monochrome Meteocon directly
- * from the installed npm package.
- *
- * No CDN.
- * No browser image loading.
- * No external request.
- */
+/* ============================================================
+   LOCAL METEOCONS
+   ============================================================ */
+
 async function getMeteoconSvg(
     iconName: string
 ): Promise<string> {
@@ -242,10 +242,20 @@ async function getMeteoconSvg(
         return cached;
     }
 
+    /*
+     * The package is installed by npm inside node_modules.
+     * Reading it directly avoids CDN/browser loading entirely.
+     */
+    const iconPath = join(
+        process.cwd(),
+        "node_modules",
+        "@meteocons",
+        "svg-static",
+        "monochrome",
+        `${iconName}.svg`
+    );
+
     try {
-        const iconPath = require.resolve(
-            `@meteocons/svg-static/monochrome/${iconName}.svg`
-        );
 
         let svg = await readFile(
             iconPath,
@@ -253,8 +263,7 @@ async function getMeteoconSvg(
         );
 
         /*
-         * Monochrome Meteocons use currentColor.
-         * Force solid black for Kindle/e-ink.
+         * Force monochrome icons to solid black.
          */
         svg = svg.replaceAll(
             "currentColor",
@@ -262,7 +271,7 @@ async function getMeteoconSvg(
         );
 
         /*
-         * Remove XML declaration if present.
+         * Strip optional XML declaration.
          */
         svg = svg.replace(
             /<\?xml[^>]*\?>/g,
@@ -279,28 +288,32 @@ async function getMeteoconSvg(
     } catch (error) {
 
         console.error(
-            `Failed to load Meteocon "${iconName}"`,
-            error
+            `Failed to load Meteocon "${iconName}" from ${iconPath}`
         );
 
         /*
-         * Always fall back to a known-safe icon.
+         * Fall back to a simple cloud if an icon name
+         * does not exist in the package.
          */
         if (iconName !== "overcast") {
-            return getMeteoconSvg(
-                "overcast"
-            );
+            return getMeteoconSvg("overcast");
         }
+
+        console.error(
+            "Could not load Meteocons fallback icon either.",
+            error
+        );
 
         return "";
     }
 }
 
 
-/**
- * Get Open-Meteo weather data for Kalbakken.
- */
-export async function getWeather(): Promise<WeatherData> {
+/* ============================================================
+   OPEN-METEO REQUEST
+   ============================================================ */
+
+async function fetchWeatherFromOpenMeteo(): Promise<WeatherData> {
 
     const params = new URLSearchParams({
 
@@ -336,24 +349,34 @@ export async function getWeather(): Promise<WeatherData> {
     });
 
 
-    const response = await fetch(
-        `https://api.open-meteo.com/v1/forecast?${params.toString()}`
+    const url =
+        `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+
+
+    console.log(
+        "Weather: fetching fresh data from Open-Meteo"
     );
 
 
+    const response = await fetch(url);
+
+
     if (!response.ok) {
+
         throw new Error(
             `Open-Meteo error: ${response.status}`
         );
+
     }
 
 
     const data = await response.json();
 
 
-    /*
-     * Build daily forecast data.
-     */
+    /* --------------------------------------------------------
+       DAILY WEATHER
+       -------------------------------------------------------- */
+
     const rawDays = data.daily.time.map(
         (
             date: string,
@@ -365,6 +388,7 @@ export async function getWeather(): Promise<WeatherData> {
 
             const info =
                 weatherInfo(weatherCode);
+
 
             return {
 
@@ -403,13 +427,11 @@ export async function getWeather(): Promise<WeatherData> {
                     ) / 10,
 
             };
+
         }
     );
 
 
-    /*
-     * Load static SVG icons locally.
-     */
     const days: WeatherDay[] =
         await Promise.all(
 
@@ -444,14 +466,17 @@ export async function getWeather(): Promise<WeatherData> {
 
                 })
             )
+
         );
 
 
-    /*
-     * Current weather.
-     */
+    /* --------------------------------------------------------
+       CURRENT WEATHER
+       -------------------------------------------------------- */
+
     const currentCode =
         data.current.weather_code;
+
 
     const currentInfo =
         weatherInfo(currentCode);
@@ -503,4 +528,111 @@ export async function getWeather(): Promise<WeatherData> {
             days.slice(1, 6),
 
     };
+}
+
+
+/* ============================================================
+   PUBLIC WEATHER FUNCTION
+   ============================================================ */
+
+export async function getWeather(): Promise<WeatherData> {
+
+    const now = Date.now();
+
+
+    /*
+     * Cache is still fresh.
+     */
+    if (
+        cachedWeather &&
+        now - cachedAt < CACHE_TTL_MS
+    ) {
+
+        console.log(
+            "Weather: using cached data"
+        );
+
+        return cachedWeather;
+
+    }
+
+
+    /*
+     * Another request is already fetching weather.
+     * Reuse that request rather than calling Open-Meteo again.
+     */
+    if (weatherRequestInProgress) {
+
+        console.log(
+            "Weather: waiting for existing weather request"
+        );
+
+        return weatherRequestInProgress;
+
+    }
+
+
+    weatherRequestInProgress =
+        (async () => {
+
+            try {
+
+                const weather =
+                    await fetchWeatherFromOpenMeteo();
+
+
+                cachedWeather =
+                    weather;
+
+                cachedAt =
+                    Date.now();
+
+
+                console.log(
+                    "Weather: fresh data cached"
+                );
+
+
+                return weather;
+
+            } catch (error) {
+
+                console.error(
+                    "Weather: fresh fetch failed",
+                    error
+                );
+
+
+                /*
+                 * If Open-Meteo temporarily rate-limits us,
+                 * continue showing the last successful forecast.
+                 */
+                if (cachedWeather) {
+
+                    console.warn(
+                        "Weather: using stale cached data"
+                    );
+
+                    return cachedWeather;
+
+                }
+
+
+                /*
+                 * No previous successful response exists.
+                 * We cannot create a meaningful weather screen.
+                 */
+                throw error;
+
+            } finally {
+
+                weatherRequestInProgress =
+                    null;
+
+            }
+
+        })();
+
+
+    return weatherRequestInProgress;
 }
