@@ -6,7 +6,7 @@ export type WeatherDay = {
     icon: string;
     maxTemp: number;
     minTemp: number;
-    rainChance: number;
+    precipitationMm: number;
 };
 
 export type WeatherData = {
