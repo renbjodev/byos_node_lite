@@ -11,9 +11,8 @@ import {readFileSync} from "node:fs";
 const headerHtml = readFileSync(TEMPLATE_FOLDER + '/Header.html', 'utf8');
 
 const screens = [
-    // you can leave one or add more
-    (data: TemplateDataType) => buildJSX(App, data),
-    (data: TemplateDataType) => buildLiquid('HackerNews', data),
+    (data: TemplateDataType) => buildLiquid('Weather', data),
+];
 ];
 
 export async function buildScreen() {
