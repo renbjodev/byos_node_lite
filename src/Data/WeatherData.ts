@@ -1,7 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-
 export type WeatherDay = {
     date: string;
     dayName: string;
@@ -16,7 +15,6 @@ export type WeatherDay = {
 
     precipitationMm: number;
 };
-
 
 export type WeatherData = {
     location: string;
@@ -48,16 +46,21 @@ const LONGITUDE = 10.8678;
 
 
 // ============================================================
+// CLOUDFLARE WEATHER PROXY
+// ============================================================
+
+const WEATHER_PROXY_URL =
+    "https://fragrant-wind-ef90.renbjo.workers.dev/";
+
+
+// ============================================================
 // CACHE
 // ============================================================
 
 const CACHE_TTL_MS =
     10 * 60 * 1000;
 
-let cachedWeather:
-    WeatherData | null =
-    null;
-
+let cachedWeather: WeatherData | null = null;
 let cachedAt = 0;
 
 let requestInProgress:
@@ -243,19 +246,15 @@ async function getMeteoconSvg(
         return cached;
     }
 
-
     const path =
         join(
             process.cwd(),
-
             "node_modules",
             "@meteocons",
             "svg-static",
             "monochrome",
-
             `${iconName}.svg`
         );
-
 
     try {
 
@@ -265,32 +264,22 @@ async function getMeteoconSvg(
                 "utf8"
             );
 
-
-        /*
-         * Force monochrome SVG to true black.
-         */
         svg =
             svg.replaceAll(
                 "currentColor",
                 "#000000"
             );
 
-
-        /*
-         * Remove optional XML declaration.
-         */
         svg =
             svg.replace(
                 /<\?xml[^>]*\?>/g,
                 ""
             );
 
-
         iconCache.set(
             iconName,
             svg
         );
-
 
         return svg;
 
@@ -300,27 +289,20 @@ async function getMeteoconSvg(
             `Failed to load weather icon "${iconName}"`
         );
 
-
-        /*
-         * Known-safe fallback.
-         */
         if (
             iconName
             !==
             "overcast"
         ) {
-
             return getMeteoconSvg(
                 "overcast"
             );
         }
 
-
         console.error(
             "Could not load fallback weather icon.",
             error
         );
-
 
         return "";
     }
@@ -328,16 +310,15 @@ async function getMeteoconSvg(
 
 
 // ============================================================
-// OPEN-METEO
+// FETCH WEATHER THROUGH CLOUDFLARE WORKER
 // ============================================================
 
 async function fetchWeather():
 Promise<WeatherData> {
 
     console.log(
-        "Weather: requesting Open-Meteo"
+        "Weather: requesting via Cloudflare proxy"
     );
-
 
     const params =
         new URLSearchParams({
@@ -373,30 +354,27 @@ Promise<WeatherData> {
 
         });
 
-
     const url =
-        "https://api.open-meteo.com/v1/forecast?"
+        WEATHER_PROXY_URL
+        + "?"
         + params.toString();
-
 
     const response =
         await fetch(url);
 
-
     if (!response.ok) {
 
         throw new Error(
-            `Open-Meteo error: ${response.status}`
+            `Weather proxy error: ${response.status}`
         );
     }
-
 
     const data =
         await response.json();
 
 
     // --------------------------------------------------------
-    // Daily forecast
+    // DAILY FORECAST
     // --------------------------------------------------------
 
     const days:
@@ -413,10 +391,8 @@ Promise<WeatherData> {
                         data.daily
                             .weather_code[index];
 
-
                     const info =
                         weatherInfo(code);
-
 
                     return {
 
@@ -468,19 +444,17 @@ Promise<WeatherData> {
 
 
     // --------------------------------------------------------
-    // Current
+    // CURRENT
     // --------------------------------------------------------
 
     const currentCode =
         data.current
             .weather_code;
 
-
     const currentInfo =
         weatherInfo(
             currentCode
         );
-
 
     return {
 
@@ -543,11 +517,6 @@ Promise<WeatherData> {
     const now =
         Date.now();
 
-
-    /*
-     * Normal Kindle refreshes within 10 minutes
-     * use the cache.
-     */
     if (
         cachedWeather
         &&
@@ -563,16 +532,9 @@ Promise<WeatherData> {
         return cachedWeather;
     }
 
-
-    /*
-     * Do not allow parallel requests to hammer
-     * Open-Meteo.
-     */
     if (requestInProgress) {
-
         return requestInProgress;
     }
-
 
     requestInProgress =
         (async () => {
@@ -582,18 +544,15 @@ Promise<WeatherData> {
                 const weather =
                     await fetchWeather();
 
-
                 cachedWeather =
                     weather;
 
                 cachedAt =
                     Date.now();
 
-
                 console.log(
                     "Weather: live data updated"
                 );
-
 
                 return weather;
 
@@ -605,7 +564,6 @@ Promise<WeatherData> {
 
         })();
 
-
     return requestInProgress;
 }
 
@@ -614,11 +572,6 @@ Promise<WeatherData> {
 // STATIC PREVIEW DATA
 // ============================================================
 
-/*
- * This is ONLY used by /image in your browser.
- *
- * It never contacts Open-Meteo.
- */
 export async function getPreviewWeather():
 Promise<WeatherData> {
 
@@ -658,7 +611,6 @@ Promise<WeatherData> {
 
         ]);
 
-
     return {
 
         location:
@@ -685,7 +637,6 @@ Promise<WeatherData> {
                 2,
 
         },
-
 
         today: {
 
@@ -715,7 +666,6 @@ Promise<WeatherData> {
 
         },
 
-
         forecast: [
 
             {
@@ -744,7 +694,6 @@ Promise<WeatherData> {
                     0,
             },
 
-
             {
                 date:
                     "2026-08-22",
@@ -770,7 +719,6 @@ Promise<WeatherData> {
                 precipitationMm:
                     0.7,
             },
-
 
             {
                 date:
@@ -798,7 +746,6 @@ Promise<WeatherData> {
                     3.2,
             },
 
-
             {
                 date:
                     "2026-08-24",
@@ -824,7 +771,6 @@ Promise<WeatherData> {
                 precipitationMm:
                     6.8,
             },
-
 
             {
                 date:
