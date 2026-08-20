@@ -1,19 +1,22 @@
 import {TIMEZONE} from "Config.js";
-import {getHackerNews, HackerNewsData} from "./HackerNewsData.js";
+import {getWeather, WeatherData} from "./WeatherData.js";
 
 export type TemplateDataType = {
-    time: string
-    hackerNews: HackerNewsData,
-}
+    time: string;
+    weather: WeatherData;
+};
 
 export async function prepareData(): Promise<TemplateDataType> {
-    const time = new Date().toLocaleTimeString(undefined, {
+    const time = new Date().toLocaleTimeString("nb-NO", {
         timeZone: TIMEZONE,
-        hour: 'numeric',
+        hour: "2-digit",
+        minute: "2-digit",
     });
-    const hackerNews = await getHackerNews();
+
+    const weather = await getWeather();
+
     return {
         time,
-        hackerNews,
-    }
+        weather,
+    };
 }
