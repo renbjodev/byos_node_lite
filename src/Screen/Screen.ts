@@ -13,7 +13,6 @@ const headerHtml = readFileSync(TEMPLATE_FOLDER + '/Header.html', 'utf8');
 const screens = [
     (data: TemplateDataType) => buildLiquid('Weather', data),
 ];
-];
 
 export async function buildScreen() {
     const randomScreen = screens[Math.floor(Math.random() * screens.length)];
