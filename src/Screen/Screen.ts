@@ -18,8 +18,8 @@ export async function buildScreen() {
     const randomScreen = screens[Math.floor(Math.random() * screens.length)];
     const templateData = await prepareData();
     const html = await randomScreen(templateData);
-    const image = await renderToImage(headerHtml + html);
-    return PNGto1BIT(image);
+const image = await renderToImage(headerHtml + html);
+return image;
 }
 
 export async function getScreenHash() {
