@@ -93,13 +93,16 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
+        color: #000;
     }
 
-    .current-icon img {
+    .current-icon svg {
         display: block;
-        width: 150px;
-        height: 150px;
-        object-fit: contain;
+        width: 150px !important;
+        height: 150px !important;
+        max-width: 150px;
+        max-height: 150px;
     }
 
     /* DETAILS */
@@ -168,14 +171,17 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
+        color: #000;
         margin: 2px 0;
     }
 
-    .forecast-icon img {
+    .forecast-icon svg {
         display: block;
-        width: 82px;
-        height: 82px;
-        object-fit: contain;
+        width: 82px !important;
+        height: 82px !important;
+        max-width: 82px;
+        max-height: 82px;
     }
 
     .forecast-temp {
@@ -195,8 +201,6 @@
 
 <div class="weather-screen">
 
-    <!-- HEADER -->
-
     <header class="weather-header">
 
         <div class="weather-title">
@@ -209,8 +213,6 @@
 
     </header>
 
-
-    <!-- TODAY -->
 
     <main class="today">
 
@@ -232,20 +234,13 @@
 
 
                 <div class="current-icon">
-
-                    <img
-                        src="{{ weather.current.iconDataUrl }}"
-                        alt=""
-                    >
-
+                    {{ weather.current.iconSvg }}
                 </div>
 
             </div>
 
         </section>
 
-
-        <!-- DETAILS -->
 
         <section class="today-right">
 
@@ -302,8 +297,6 @@
     </main>
 
 
-    <!-- FORECAST -->
-
     <section class="forecast">
 
         {% for day in weather.forecast %}
@@ -316,12 +309,7 @@
 
 
                 <div class="forecast-icon">
-
-                    <img
-                        src="{{ day.iconDataUrl }}"
-                        alt=""
-                    >
-
+                    {{ day.iconSvg }}
                 </div>
 
 
