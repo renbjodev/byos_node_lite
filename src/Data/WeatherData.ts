@@ -44,16 +44,12 @@ const LONGITUDE = 10.8678;
 const MET_URL =
     `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${LATITUDE}&lon=${LONGITUDE}`;
 
-/*
- * MET Norway requires an identifiable User-Agent.
- * A project/repository URL is fine as contact information.
- */
 const MET_USER_AGENT =
     "KalbakkenKindleWeather/1.0 https://github.com/renbjodev/byos_node_lite";
 
 
 /* ============================================================
-   WEATHER CACHE
+   CACHE
    ============================================================ */
 
 let cachedWeather: WeatherData | null = null;
@@ -61,12 +57,52 @@ let cacheExpiresAt = 0;
 
 let weatherRequestInProgress: Promise<WeatherData> | null = null;
 
+const iconCache = new Map<string, string>();
+
 
 /* ============================================================
-   ICON CACHE
+   MET TYPES
    ============================================================ */
 
-const iconCache = new Map<string, string>();
+type MetEntry = {
+    time: string;
+
+    data: {
+        instant: {
+            details: {
+                air_temperature?: number;
+                wind_speed?: number;
+                cloud_area_fraction?: number;
+            };
+        };
+
+        next_1_hours?: {
+            summary?: {
+                symbol_code?: string;
+            };
+
+            details?: {
+                precipitation_amount?: number;
+            };
+        };
+
+        next_6_hours?: {
+            summary?: {
+                symbol_code?: string;
+            };
+
+            details?: {
+                precipitation_amount?: number;
+            };
+        };
+
+        next_12_hours?: {
+            summary?: {
+                symbol_code?: string;
+            };
+        };
+    };
+};
 
 
 /* ============================================================
@@ -74,22 +110,30 @@ const iconCache = new Map<string, string>();
    ============================================================ */
 
 function osloDateString(date: Date): string {
-    return new Intl.DateTimeFormat("sv-SE", {
-        timeZone: "Europe/Oslo",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-    }).format(date);
+
+    return new Intl.DateTimeFormat(
+        "sv-SE",
+        {
+            timeZone: "Europe/Oslo",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }
+    ).format(date);
 }
 
 
 function osloHour(date: Date): number {
+
     return Number(
-        new Intl.DateTimeFormat("en-GB", {
-            timeZone: "Europe/Oslo",
-            hour: "2-digit",
-            hour12: false,
-        }).format(date)
+        new Intl.DateTimeFormat(
+            "en-GB",
+            {
+                timeZone: "Europe/Oslo",
+                hour: "2-digit",
+                hour12: false,
+            }
+        ).format(date)
     );
 }
 
@@ -106,24 +150,33 @@ function norwegianDay(dateString: string): string {
         "LØR",
     ];
 
+    /*
+     * Noon avoids timezone/date-boundary issues.
+     */
     const date =
-        new Date(dateString + "T12:00:00+02:00");
+        new Date(`${dateString}T12:00:00`);
 
     return names[date.getDay()];
 }
 
 
 /* ============================================================
-   MET SYMBOL → LABEL
+   SYMBOL HELPERS
    ============================================================ */
+
+function baseSymbol(symbolCode: string): string {
+
+    return symbolCode
+        .replace("_day", "")
+        .replace("_night", "")
+        .replace("_polartwilight", "");
+}
+
 
 function weatherLabel(symbolCode: string): string {
 
     const code =
-        symbolCode
-            .replace("_day", "")
-            .replace("_night", "")
-            .replace("_polartwilight", "");
+        baseSymbol(symbolCode);
 
 
     if (code === "clearsky") {
@@ -146,6 +199,7 @@ function weatherLabel(symbolCode: string): string {
         return "Tåke";
     }
 
+
     if (code.includes("heavyrain")) {
         return "Kraftig regn";
     }
@@ -161,6 +215,7 @@ function weatherLabel(symbolCode: string): string {
     if (code.includes("rain")) {
         return "Regn";
     }
+
 
     if (code.includes("heavysnow")) {
         return "Kraftig snø";
@@ -178,13 +233,16 @@ function weatherLabel(symbolCode: string): string {
         return "Snø";
     }
 
+
     if (code.includes("sleet")) {
         return "Sludd";
     }
 
+
     if (code.includes("thunder")) {
         return "Torden";
     }
+
 
     return "Ukjent";
 }
@@ -203,10 +261,7 @@ function meteoconName(symbolCode: string): string {
         isNight ? "night" : "day";
 
     const code =
-        symbolCode
-            .replace("_day", "")
-            .replace("_night", "")
-            .replace("_polartwilight", "");
+        baseSymbol(symbolCode);
 
 
     if (code === "clearsky") {
@@ -302,14 +357,15 @@ async function getMeteoconSvg(
     }
 
 
-    const iconPath = join(
-        process.cwd(),
-        "node_modules",
-        "@meteocons",
-        "svg-static",
-        "monochrome",
-        `${iconName}.svg`
-    );
+    const iconPath =
+        join(
+            process.cwd(),
+            "node_modules",
+            "@meteocons",
+            "svg-static",
+            "monochrome",
+            `${iconName}.svg`
+        );
 
 
     try {
@@ -321,16 +377,18 @@ async function getMeteoconSvg(
             );
 
 
-        svg = svg.replaceAll(
-            "currentColor",
-            "#000000"
-        );
+        svg =
+            svg.replaceAll(
+                "currentColor",
+                "#000000"
+            );
 
 
-        svg = svg.replace(
-            /<\?xml[^>]*\?>/g,
-            ""
-        );
+        svg =
+            svg.replace(
+                /<\?xml[^>]*\?>/g,
+                ""
+            );
 
 
         iconCache.set(
@@ -344,11 +402,12 @@ async function getMeteoconSvg(
     } catch (error) {
 
         console.error(
-            `Failed to load Meteocon "${iconName}" from ${iconPath}`
+            `Failed to load Meteocon "${iconName}"`
         );
 
 
         if (iconName !== "overcast") {
+
             return getMeteoconSvg(
                 "overcast"
             );
@@ -367,37 +426,405 @@ async function getMeteoconSvg(
 
 
 /* ============================================================
-   MET DATA TYPES
+   PRECIPITATION AGGREGATION
    ============================================================ */
 
-type MetEntry = {
-    time: string;
-
-    data: {
-        instant: {
-            details: {
-                air_temperature?: number;
-                wind_speed?: number;
-            };
-        };
-
-        next_1_hours?: {
-            summary?: {
-                symbol_code?: string;
-            };
-
-            details?: {
-                precipitation_amount?: number;
-            };
-        };
-
-        next_6_hours?: {
-            summary?: {
-                symbol_code?: string;
-            };
-        };
-    };
+type PrecipPeriod = {
+    start: number;
+    end: number;
+    amount: number;
 };
+
+
+/*
+ * Build non-overlapping precipitation periods.
+ *
+ * Near-term MET data has next_1_hours.
+ * Longer-range data mainly has next_6_hours.
+ *
+ * We use the 1-hour periods first because they are most precise,
+ * then add 6-hour periods only when they do not overlap already
+ * counted periods.
+ */
+function dailyPrecipitation(
+    entries: MetEntry[]
+): number {
+
+    const periods: PrecipPeriod[] = [];
+
+
+    /* --------------------------------------------------------
+       1 HOUR PERIODS
+       -------------------------------------------------------- */
+
+    for (const entry of entries) {
+
+        const amount =
+            entry.data
+                .next_1_hours
+                ?.details
+                ?.precipitation_amount;
+
+
+        if (typeof amount !== "number") {
+            continue;
+        }
+
+
+        const start =
+            new Date(entry.time).getTime();
+
+
+        periods.push({
+            start,
+            end: start + 60 * 60 * 1000,
+            amount,
+        });
+    }
+
+
+    /*
+     * Keep track of periods already covered by hourly data.
+     */
+    const covered =
+        periods.map(
+            period => ({
+                start: period.start,
+                end: period.end,
+            })
+        );
+
+
+    /* --------------------------------------------------------
+       6 HOUR PERIODS
+       -------------------------------------------------------- */
+
+    const sixHourCandidates: PrecipPeriod[] =
+        [];
+
+
+    for (const entry of entries) {
+
+        const amount =
+            entry.data
+                .next_6_hours
+                ?.details
+                ?.precipitation_amount;
+
+
+        if (typeof amount !== "number") {
+            continue;
+        }
+
+
+        const start =
+            new Date(entry.time).getTime();
+
+
+        sixHourCandidates.push({
+            start,
+            end:
+                start
+                +
+                6 * 60 * 60 * 1000,
+            amount,
+        });
+    }
+
+
+    sixHourCandidates.sort(
+        (a, b) =>
+            a.start - b.start
+    );
+
+
+    for (const candidate of sixHourCandidates) {
+
+        /*
+         * Does this 6-hour forecast overlap data
+         * we have already counted?
+         */
+        const overlaps =
+            covered.some(
+                existing =>
+                    candidate.start < existing.end
+                    &&
+                    candidate.end > existing.start
+            );
+
+
+        if (overlaps) {
+            continue;
+        }
+
+
+        periods.push(
+            candidate
+        );
+
+
+        covered.push({
+            start:
+                candidate.start,
+
+            end:
+                candidate.end,
+        });
+    }
+
+
+    const total =
+        periods.reduce(
+            (
+                sum,
+                period
+            ) =>
+                sum + period.amount,
+            0
+        );
+
+
+    return (
+        Math.round(total * 10) / 10
+    );
+}
+
+
+/* ============================================================
+   DAYTIME WEATHER SELECTION
+   ============================================================ */
+
+/*
+ * Return the entry closest to local noon.
+ */
+function closestToNoon(
+    entries: MetEntry[]
+): MetEntry {
+
+    return [...entries]
+        .sort(
+            (a, b) => {
+
+                const aDistance =
+                    Math.abs(
+                        osloHour(
+                            new Date(a.time)
+                        ) - 12
+                    );
+
+
+                const bDistance =
+                    Math.abs(
+                        osloHour(
+                            new Date(b.time)
+                        ) - 12
+                    );
+
+
+                return (
+                    aDistance
+                    -
+                    bDistance
+                );
+            }
+        )[0];
+}
+
+
+/*
+ * Pick the most meaningful precipitation symbol
+ * during daytime.
+ */
+function daytimePrecipitationSymbol(
+    entries: MetEntry[]
+): string | null {
+
+    const daytime =
+        entries.filter(
+            entry => {
+
+                const hour =
+                    osloHour(
+                        new Date(entry.time)
+                    );
+
+                return (
+                    hour >= 8
+                    &&
+                    hour <= 19
+                );
+            }
+        );
+
+
+    let bestSymbol:
+        string | null = null;
+
+    let bestAmount = 0;
+
+
+    for (const entry of daytime) {
+
+        const amount =
+            entry.data
+                .next_1_hours
+                ?.details
+                ?.precipitation_amount
+            ??
+            0;
+
+
+        const symbol =
+            entry.data
+                .next_1_hours
+                ?.summary
+                ?.symbol_code;
+
+
+        if (
+            symbol
+            &&
+            amount > bestAmount
+        ) {
+
+            bestAmount =
+                amount;
+
+            bestSymbol =
+                symbol;
+        }
+    }
+
+
+    /*
+     * Only let precipitation override the normal
+     * daytime icon when it is actually meaningful.
+     *
+     * 0.2 mm/hour avoids turning a mostly sunny day
+     * into a rain icon because of negligible drizzle.
+     */
+    if (
+        bestSymbol
+        &&
+        bestAmount >= 0.2
+    ) {
+
+        return bestSymbol;
+    }
+
+
+    return null;
+}
+
+
+/*
+ * Build a sky-condition symbol directly from cloud cover
+ * around noon.
+ *
+ * This avoids using a 6-hour summary to represent one
+ * specific moment in the middle of the day.
+ */
+function skySymbolFromNoon(
+    entry: MetEntry
+): string {
+
+    const cloud =
+        entry.data
+            .instant
+            .details
+            .cloud_area_fraction;
+
+
+    /*
+     * If MET does not supply cloud coverage,
+     * fall back to its closest available symbol.
+     */
+    if (typeof cloud !== "number") {
+
+        return (
+            entry.data
+                .next_1_hours
+                ?.summary
+                ?.symbol_code
+
+            ??
+
+            entry.data
+                .next_6_hours
+                ?.summary
+                ?.symbol_code
+
+            ??
+
+            entry.data
+                .next_12_hours
+                ?.summary
+                ?.symbol_code
+
+            ??
+
+            "cloudy"
+        );
+    }
+
+
+    /*
+     * Approximate MET/Yr-style sky categories.
+     */
+    if (cloud <= 12.5) {
+        return "clearsky_day";
+    }
+
+
+    if (cloud <= 37.5) {
+        return "fair_day";
+    }
+
+
+    if (cloud <= 75) {
+        return "partlycloudy_day";
+    }
+
+
+    return "cloudy";
+}
+
+
+/*
+ * Choose the icon that represents the daytime weather.
+ */
+function representativeDaySymbol(
+    entries: MetEntry[]
+): string {
+
+    /*
+     * First: meaningful rain/snow/thunder during daytime.
+     */
+    const precipitationSymbol =
+        daytimePrecipitationSymbol(
+            entries
+        );
+
+
+    if (precipitationSymbol) {
+        return precipitationSymbol;
+    }
+
+
+    /*
+     * Otherwise: use actual instantaneous cloud cover
+     * around noon.
+     */
+    const noon =
+        closestToNoon(
+            entries
+        );
+
+
+    return skySymbolFromNoon(
+        noon
+    );
+}
 
 
 /* ============================================================
@@ -409,7 +836,10 @@ async function buildDays(
 ): Promise<WeatherDay[]> {
 
     const grouped =
-        new Map<string, MetEntry[]>();
+        new Map<
+            string,
+            MetEntry[]
+        >();
 
 
     for (const entry of timeseries) {
@@ -420,15 +850,18 @@ async function buildDays(
             );
 
 
-        const existing =
-            grouped.get(date) ?? [];
+        const entries =
+            grouped.get(date)
+            ??
+            [];
 
 
-        existing.push(entry);
+        entries.push(entry);
+
 
         grouped.set(
             date,
-            existing
+            entries
         );
     }
 
@@ -439,20 +872,25 @@ async function buildDays(
             .slice(0, 7);
 
 
-    const days: WeatherDay[] = [];
+    const days:
+        WeatherDay[] =
+        [];
 
 
     for (const date of dates) {
 
         const entries =
-            grouped.get(date) ?? [];
+            grouped.get(date)
+            ??
+            [];
 
 
         const temperatures =
             entries
                 .map(
                     entry =>
-                        entry.data
+                        entry
+                            .data
                             .instant
                             .details
                             .air_temperature
@@ -461,96 +899,55 @@ async function buildDays(
                     (
                         value
                     ): value is number =>
-                        typeof value === "number"
+                        typeof value
+                        ===
+                        "number"
                 );
 
 
-        if (temperatures.length === 0) {
+        if (
+            temperatures.length
+            ===
+            0
+        ) {
+
             continue;
         }
 
 
         const maxTemp =
             Math.round(
-                Math.max(...temperatures)
+                Math.max(
+                    ...temperatures
+                )
             );
 
 
         const minTemp =
             Math.round(
-                Math.min(...temperatures)
+                Math.min(
+                    ...temperatures
+                )
             );
 
 
-        /*
-         * next_1_hours precipitation values can safely
-         * be summed without overlapping forecast periods.
-         */
         const precipitationMm =
-            Math.round(
-                entries.reduce(
-                    (
-                        total,
-                        entry
-                    ) =>
-                        total +
-                        (
-                            entry.data
-                                .next_1_hours
-                                ?.details
-                                ?.precipitation_amount
-                            ?? 0
-                        ),
-                    0
-                ) * 10
-            ) / 10;
-
-
-        /*
-         * Pick the forecast entry closest to local noon
-         * for the day's representative weather icon.
-         */
-        const noonEntry =
-            [...entries]
-                .sort(
-                    (a, b) =>
-                        Math.abs(
-                            osloHour(
-                                new Date(a.time)
-                            ) - 12
-                        )
-                        -
-                        Math.abs(
-                            osloHour(
-                                new Date(b.time)
-                            ) - 12
-                        )
-                )[0];
+            dailyPrecipitation(
+                entries
+            );
 
 
         const symbolCode =
-            noonEntry?.data
-                .next_6_hours
-                ?.summary
-                ?.symbol_code
-            ??
-            noonEntry?.data
-                .next_1_hours
-                ?.summary
-                ?.symbol_code
-            ??
-            "cloudy";
-
-
-        const iconName =
-            meteoconName(
-                symbolCode
+            representativeDaySymbol(
+                entries
             );
 
 
         const iconSvg =
             await getMeteoconSvg(
-                iconName
+                meteoconName(
+                    symbolCode
+                )
             );
 
 
@@ -559,7 +956,9 @@ async function buildDays(
             date,
 
             dayName:
-                norwegianDay(date),
+                norwegianDay(
+                    date
+                ),
 
             weatherCode:
                 symbolCode,
@@ -603,6 +1002,7 @@ async function fetchWeatherFromMet(): Promise<WeatherData> {
                 headers: {
                     "User-Agent":
                         MET_USER_AGENT,
+
                     "Accept":
                         "application/json",
                 },
@@ -622,12 +1022,16 @@ async function fetchWeatherFromMet(): Promise<WeatherData> {
         await response.json();
 
 
-    const timeseries: MetEntry[] =
-        data.properties.timeseries;
+    const timeseries:
+        MetEntry[] =
+        data
+            .properties
+            .timeseries;
 
 
     if (
-        !timeseries ||
+        !timeseries
+        ||
         timeseries.length === 0
     ) {
 
@@ -637,37 +1041,59 @@ async function fetchWeatherFromMet(): Promise<WeatherData> {
     }
 
 
-    const now =
+    /* --------------------------------------------------------
+       CURRENT CONDITIONS
+       -------------------------------------------------------- */
+
+    const current =
         timeseries[0];
 
 
     const currentTemperature =
-        now.data
+        current
+            .data
             .instant
             .details
             .air_temperature
-        ?? 0;
+        ??
+        0;
 
 
     const windSpeed =
-        now.data
+        current
+            .data
             .instant
             .details
             .wind_speed
-        ?? 0;
+        ??
+        0;
 
 
     const currentSymbol =
-        now.data
+        current
+            .data
             .next_1_hours
             ?.summary
             ?.symbol_code
+
         ??
-        now.data
+
+        current
+            .data
             .next_6_hours
             ?.summary
             ?.symbol_code
+
         ??
+
+        current
+            .data
+            .next_12_hours
+            ?.summary
+            ?.symbol_code
+
+        ??
+
         "cloudy";
 
 
@@ -679,13 +1105,19 @@ async function fetchWeatherFromMet(): Promise<WeatherData> {
         );
 
 
+    /* --------------------------------------------------------
+       DAILY FORECAST
+       -------------------------------------------------------- */
+
     const days =
         await buildDays(
             timeseries
         );
 
 
-    if (days.length === 0) {
+    if (
+        days.length === 0
+    ) {
 
         throw new Error(
             "Could not build daily forecast from MET Norway data"
@@ -693,12 +1125,9 @@ async function fetchWeatherFromMet(): Promise<WeatherData> {
     }
 
 
-    /*
-     * MET compact does not include "feels like" directly.
-     * For now we use the actual temperature there so the
-     * existing layout does not need to change.
-     */
-    const weather: WeatherData = {
+    const weather:
+        WeatherData =
+    {
 
         location:
             "Kalbakken",
@@ -710,6 +1139,14 @@ async function fetchWeatherFromMet(): Promise<WeatherData> {
                     currentTemperature
                 ),
 
+            /*
+             * MET compact does not directly provide
+             * apparent temperature.
+             *
+             * Keep actual temperature here for now
+             * so the current Weather.liquid continues
+             * to work unchanged.
+             */
             apparentTemperature:
                 Math.round(
                     currentTemperature
@@ -737,18 +1174,24 @@ async function fetchWeatherFromMet(): Promise<WeatherData> {
             days[0],
 
         forecast:
-            days.slice(1, 6),
+            days.slice(
+                1,
+                6
+            ),
 
     };
 
 
-    /*
-     * MET explicitly tells clients when the data expires.
-     */
+    /* --------------------------------------------------------
+       MET CACHE EXPIRATION
+       -------------------------------------------------------- */
+
     const expiresHeader =
-        response.headers.get(
-            "expires"
-        );
+        response
+            .headers
+            .get(
+                "expires"
+            );
 
 
     if (expiresHeader) {
@@ -759,7 +1202,12 @@ async function fetchWeatherFromMet(): Promise<WeatherData> {
             ).getTime();
 
 
-        if (!Number.isNaN(expires)) {
+        if (
+            !Number.isNaN(
+                expires
+            )
+        ) {
+
             cacheExpiresAt =
                 expires;
         }
@@ -767,11 +1215,14 @@ async function fetchWeatherFromMet(): Promise<WeatherData> {
 
 
     /*
-     * Safety fallback if Expires is unavailable.
+     * Fallback if MET does not supply a useful Expires header.
      */
     if (
-        !cacheExpiresAt ||
-        cacheExpiresAt <= Date.now()
+        !cacheExpiresAt
+        ||
+        cacheExpiresAt
+        <=
+        Date.now()
     ) {
 
         cacheExpiresAt =
@@ -796,7 +1247,8 @@ export async function getWeather(): Promise<WeatherData> {
 
 
     if (
-        cachedWeather &&
+        cachedWeather
+        &&
         now < cacheExpiresAt
     ) {
 
@@ -809,7 +1261,9 @@ export async function getWeather(): Promise<WeatherData> {
     }
 
 
-    if (weatherRequestInProgress) {
+    if (
+        weatherRequestInProgress
+    ) {
 
         console.log(
             "Weather: waiting for existing MET Norway request"
