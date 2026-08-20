@@ -416,8 +416,8 @@
                 <div class="detail-label">Vind</div>
                 <div class="detail-value">{{ weather.current.windSpeed }} m/s</div>
 
-                <div class="detail-label">Nedbørssjanse</div>
-                <div class="detail-value">{{ weather.today.rainChance }} %</div>
+                <div class="detail-label">Nedbør</div>
+<div class="detail-value">{{ weather.today.precipitationMm }} mm</div>
 
             </div>
 
@@ -565,8 +565,8 @@
                 </div>
 
                 <div class="forecast-rain">
-                    Regn {{ day.rainChance }}%
-                </div>
+    {{ day.precipitationMm }} mm
+</div>
 
             </article>
 
