@@ -10,6 +10,7 @@
   },
   "type": "module",
   "dependencies": {
+    "@meteocons/svg-static": "0.1.0",
     "express": "^5.1.0",
     "jimp": "^1.6.0",
     "liquidjs": "^10.21.1",
