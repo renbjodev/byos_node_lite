@@ -49,7 +49,7 @@ app.get(ROUTE_IMAGE, async (req: Request, res: Response) => {
         return;
     }
     const image1bit = await buildScreen();
-    res.setHeader('Content-Type', 'image/bmp');
+    res.setHeader('Content-Type', 'image/png');
     res.send(image1bit);
 })
 
