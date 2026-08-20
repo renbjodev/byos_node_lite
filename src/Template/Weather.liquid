@@ -23,9 +23,7 @@
         background: #fff;
     }
 
-    /* ---------------------------------------------------------
-       HEADER
-    --------------------------------------------------------- */
+    /* HEADER */
 
     .weather-header {
         height: 58px;
@@ -38,7 +36,6 @@
         font-size: 30px;
         line-height: 1;
         font-weight: 700;
-        letter-spacing: 0.2px;
     }
 
     .weather-updated {
@@ -47,9 +44,7 @@
         white-space: nowrap;
     }
 
-    /* ---------------------------------------------------------
-       TODAY
-    --------------------------------------------------------- */
+    /* TODAY */
 
     .today {
         flex: 1;
@@ -100,14 +95,14 @@
         justify-content: center;
     }
 
-    .current-icon svg {
-        width: 142px;
-        height: 142px;
+    .current-icon img {
+        width: 150px;
+        height: 150px;
+        object-fit: contain;
+        display: block;
     }
 
-    /* ---------------------------------------------------------
-       DETAILS
-    --------------------------------------------------------- */
+    /* DETAILS */
 
     .today-right {
         display: flex;
@@ -136,9 +131,7 @@
         font-weight: 400;
     }
 
-    /* ---------------------------------------------------------
-       FORECAST
-    --------------------------------------------------------- */
+    /* FORECAST */
 
     .forecast {
         height: 250px;
@@ -170,17 +163,19 @@
     }
 
     .forecast-icon {
-        width: 76px;
-        height: 76px;
+        width: 82px;
+        height: 82px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 6px 0;
+        margin: 2px 0;
     }
 
-    .forecast-icon svg {
-        width: 74px;
-        height: 74px;
+    .forecast-icon img {
+        width: 82px;
+        height: 82px;
+        object-fit: contain;
+        display: block;
     }
 
     .forecast-temp {
@@ -195,29 +190,13 @@
         line-height: 1;
         white-space: nowrap;
     }
-
-    /* ---------------------------------------------------------
-       SVG WEATHER ICONS
-    --------------------------------------------------------- */
-
-    .weather-svg {
-        fill: none;
-        stroke: #000;
-        stroke-width: 7;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-    }
-
-    .forecast-icon .weather-svg {
-        stroke-width: 6;
-    }
 </style>
 
 
 <div class="weather-screen">
 
-    <!-- HEADER -->
     <header class="weather-header">
+
         <div class="weather-title">
             {{ weather.location }} · I DAG
         </div>
@@ -225,16 +204,18 @@
         <div class="weather-updated">
             Sist oppdatert: {{ time }}
         </div>
+
     </header>
 
 
-    <!-- TODAY -->
     <main class="today">
 
         <section class="today-left">
+
             <div class="current-weather">
 
                 <div class="current-copy">
+
                     <div class="current-temp">
                         {{ weather.current.temperature }}°
                     </div>
@@ -242,161 +223,69 @@
                     <div class="current-condition">
                         {{ weather.current.weatherLabel }}
                     </div>
+
                 </div>
+
+
+                {% assign code = weather.current.weatherCode %}
+                {% assign icon = "overcast" %}
+
+                {% if code == 0 %}
+                    {% assign icon = "clear-day" %}
+
+                {% elsif code == 1 %}
+                    {% assign icon = "partly-cloudy-day" %}
+
+                {% elsif code == 2 %}
+                    {% assign icon = "overcast" %}
+
+                {% elsif code == 3 %}
+                    {% assign icon = "overcast" %}
+
+                {% elsif code == 45 or code == 48 %}
+                    {% assign icon = "fog-day" %}
+
+                {% elsif code == 51 or code == 53 or code == 55 or code == 56 or code == 57 %}
+                    {% assign icon = "drizzle" %}
+
+                {% elsif code == 61 %}
+                    {% assign icon = "drizzle" %}
+
+                {% elsif code == 63 %}
+                    {% assign icon = "rain" %}
+
+                {% elsif code == 65 or code == 66 or code == 67 %}
+                    {% assign icon = "extreme-rain" %}
+
+                {% elsif code == 71 or code == 73 or code == 75 or code == 77 %}
+                    {% assign icon = "snow" %}
+
+                {% elsif code == 80 %}
+                    {% assign icon = "partly-cloudy-day-rain" %}
+
+                {% elsif code == 81 %}
+                    {% assign icon = "rain" %}
+
+                {% elsif code == 82 %}
+                    {% assign icon = "extreme-rain" %}
+
+                {% elsif code == 85 or code == 86 %}
+                    {% assign icon = "snow" %}
+
+                {% elsif code == 95 or code == 96 or code == 99 %}
+                    {% assign icon = "thunderstorms-day-rain" %}
+                {% endif %}
 
 
                 <div class="current-icon">
-
-                    {% case weather.current.weatherCode %}
-
-                        {% when 0 %}
-                            <!-- CLEAR -->
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <circle cx="60" cy="60" r="24"></circle>
-                                <line x1="60" y1="10" x2="60" y2="25"></line>
-                                <line x1="60" y1="95" x2="60" y2="110"></line>
-                                <line x1="10" y1="60" x2="25" y2="60"></line>
-                                <line x1="95" y1="60" x2="110" y2="60"></line>
-                                <line x1="25" y1="25" x2="36" y2="36"></line>
-                                <line x1="84" y1="84" x2="95" y2="95"></line>
-                                <line x1="25" y1="95" x2="36" y2="84"></line>
-                                <line x1="84" y1="36" x2="95" y2="25"></line>
-                            </svg>
-
-                        {% when 1 %}
-                            <!-- MOSTLY CLEAR -->
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <circle cx="47" cy="42" r="20"></circle>
-                                <line x1="47" y1="10" x2="47" y2="19"></line>
-                                <line x1="18" y1="42" x2="27" y2="42"></line>
-                                <line x1="67" y1="42" x2="76" y2="42"></line>
-                                <line x1="26" y1="21" x2="32" y2="27"></line>
-                                <line x1="62" y1="27" x2="68" y2="21"></line>
-                                <path d="M30 91
-                                         C23 91 18 85 18 77
-                                         C18 68 25 61 34 61
-                                         C39 49 49 43 61 43
-                                         C75 43 86 53 88 66
-                                         C97 67 104 75 104 84
-                                         C104 94 96 101 86 101
-                                         H34
-                                         C25 101 18 97 18 91"></path>
-                            </svg>
-
-                        {% when 2 %}
-                            <!-- PARTLY CLOUDY -->
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <circle cx="42" cy="38" r="18"></circle>
-                                <line x1="42" y1="10" x2="42" y2="18"></line>
-                                <line x1="15" y1="38" x2="23" y2="38"></line>
-                                <line x1="61" y1="38" x2="69" y2="38"></line>
-                                <path d="M25 94
-                                         C17 94 12 87 12 79
-                                         C12 70 20 62 29 62
-                                         C35 49 46 43 59 43
-                                         C74 43 86 54 88 68
-                                         C99 69 107 77 107 88
-                                         C107 99 99 106 87 106
-                                         H31
-                                         C20 106 12 101 12 94"></path>
-                            </svg>
-
-                        {% when 3 %}
-                            <!-- CLOUDY -->
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <path d="M24 91
-                                         C15 91 10 84 10 75
-                                         C10 65 18 57 28 57
-                                         C34 42 47 34 62 34
-                                         C80 34 94 47 96 64
-                                         C106 66 113 74 113 85
-                                         C113 97 104 105 92 105
-                                         H29
-                                         C18 105 10 100 10 91"></path>
-                            </svg>
-
-                        {% when 45 or 48 %}
-                            <!-- FOG -->
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <line x1="18" y1="38" x2="102" y2="38"></line>
-                                <line x1="28" y1="55" x2="92" y2="55"></line>
-                                <line x1="15" y1="72" x2="105" y2="72"></line>
-                                <line x1="31" y1="89" x2="89" y2="89"></line>
-                            </svg>
-
-                        {% when 51 or 53 or 55 or 56 or 57 or 61 or 63 or 65 or 66 or 67 or 80 or 81 or 82 %}
-                            <!-- RAIN -->
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <path d="M22 68
-                                         C14 68 10 61 10 53
-                                         C10 44 18 36 27 36
-                                         C33 23 44 17 58 17
-                                         C74 17 86 28 88 42
-                                         C99 43 107 51 107 62
-                                         C107 72 99 79 88 79
-                                         H28
-                                         C18 79 10 75 10 68"></path>
-                                <line x1="35" y1="89" x2="29" y2="103"></line>
-                                <line x1="59" y1="89" x2="53" y2="103"></line>
-                                <line x1="83" y1="89" x2="77" y2="103"></line>
-                            </svg>
-
-                        {% when 71 or 73 or 75 or 77 or 85 or 86 %}
-                            <!-- SNOW -->
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <path d="M22 65
-                                         C14 65 10 58 10 50
-                                         C10 41 18 33 27 33
-                                         C33 21 44 15 58 15
-                                         C74 15 86 26 88 40
-                                         C99 41 107 49 107 60
-                                         C107 70 99 77 88 77
-                                         H28
-                                         C18 77 10 73 10 65"></path>
-                                <line x1="33" y1="89" x2="33" y2="105"></line>
-                                <line x1="25" y1="97" x2="41" y2="97"></line>
-
-                                <line x1="60" y1="89" x2="60" y2="105"></line>
-                                <line x1="52" y1="97" x2="68" y2="97"></line>
-
-                                <line x1="87" y1="89" x2="87" y2="105"></line>
-                                <line x1="79" y1="97" x2="95" y2="97"></line>
-                            </svg>
-
-                        {% when 95 or 96 or 99 %}
-                            <!-- THUNDER -->
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <path d="M22 63
-                                         C14 63 10 56 10 48
-                                         C10 39 18 31 27 31
-                                         C33 19 44 13 58 13
-                                         C74 13 86 24 88 38
-                                         C99 39 107 47 107 58
-                                         C107 68 99 75 88 75
-                                         H28
-                                         C18 75 10 71 10 63"></path>
-                                <polyline points="62,78 48,98 61,98 52,113 77,89 63,89 72,78"></polyline>
-                            </svg>
-
-                        {% else %}
-                            <!-- FALLBACK CLOUD -->
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <path d="M24 91
-                                         C15 91 10 84 10 75
-                                         C10 65 18 57 28 57
-                                         C34 42 47 34 62 34
-                                         C80 34 94 47 96 64
-                                         C106 66 113 74 113 85
-                                         C113 97 104 105 92 105
-                                         H29
-                                         C18 105 10 100 10 91"></path>
-                            </svg>
-
-                    {% endcase %}
-
+                    <img
+                        src="https://cdn.meteocons.com/latest/svg-static/monochrome/{{ icon }}.svg"
+                        alt="{{ weather.current.weatherLabel }}"
+                    >
                 </div>
 
             </div>
+
         </section>
 
 
@@ -405,19 +294,29 @@
             <div class="details">
 
                 <div class="detail-label">Maks</div>
-                <div class="detail-value">{{ weather.today.maxTemp }} °C</div>
+                <div class="detail-value">
+                    {{ weather.today.maxTemp }} °C
+                </div>
 
                 <div class="detail-label">Min</div>
-                <div class="detail-value">{{ weather.today.minTemp }} °C</div>
+                <div class="detail-value">
+                    {{ weather.today.minTemp }} °C
+                </div>
 
                 <div class="detail-label">Føles som</div>
-                <div class="detail-value">{{ weather.current.apparentTemperature }} °C</div>
+                <div class="detail-value">
+                    {{ weather.current.apparentTemperature }} °C
+                </div>
 
                 <div class="detail-label">Vind</div>
-                <div class="detail-value">{{ weather.current.windSpeed }} m/s</div>
+                <div class="detail-value">
+                    {{ weather.current.windSpeed }} m/s
+                </div>
 
                 <div class="detail-label">Nedbør</div>
-<div class="detail-value">{{ weather.today.precipitationMm }} mm</div>
+                <div class="detail-value">
+                    {{ weather.today.precipitationMm }} mm
+                </div>
 
             </div>
 
@@ -426,10 +325,59 @@
     </main>
 
 
-    <!-- 5 DAY FORECAST -->
     <section class="forecast">
 
         {% for day in weather.forecast %}
+
+            {% assign code = day.weatherCode %}
+            {% assign icon = "overcast" %}
+
+            {% if code == 0 %}
+                {% assign icon = "clear-day" %}
+
+            {% elsif code == 1 %}
+                {% assign icon = "partly-cloudy-day" %}
+
+            {% elsif code == 2 %}
+                {% assign icon = "overcast" %}
+
+            {% elsif code == 3 %}
+                {% assign icon = "overcast" %}
+
+            {% elsif code == 45 or code == 48 %}
+                {% assign icon = "fog-day" %}
+
+            {% elsif code == 51 or code == 53 or code == 55 or code == 56 or code == 57 %}
+                {% assign icon = "drizzle" %}
+
+            {% elsif code == 61 %}
+                {% assign icon = "drizzle" %}
+
+            {% elsif code == 63 %}
+                {% assign icon = "rain" %}
+
+            {% elsif code == 65 or code == 66 or code == 67 %}
+                {% assign icon = "extreme-rain" %}
+
+            {% elsif code == 71 or code == 73 or code == 75 or code == 77 %}
+                {% assign icon = "snow" %}
+
+            {% elsif code == 80 %}
+                {% assign icon = "partly-cloudy-day-rain" %}
+
+            {% elsif code == 81 %}
+                {% assign icon = "rain" %}
+
+            {% elsif code == 82 %}
+                {% assign icon = "extreme-rain" %}
+
+            {% elsif code == 85 or code == 86 %}
+                {% assign icon = "snow" %}
+
+            {% elsif code == 95 or code == 96 or code == 99 %}
+                {% assign icon = "thunderstorms-day-rain" %}
+            {% endif %}
+
 
             <article class="forecast-day">
 
@@ -437,136 +385,20 @@
                     {{ day.dayName }}
                 </div>
 
-
                 <div class="forecast-icon">
-
-                    {% case day.weatherCode %}
-
-                        {% when 0 %}
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <circle cx="60" cy="60" r="24"></circle>
-                                <line x1="60" y1="10" x2="60" y2="25"></line>
-                                <line x1="60" y1="95" x2="60" y2="110"></line>
-                                <line x1="10" y1="60" x2="25" y2="60"></line>
-                                <line x1="95" y1="60" x2="110" y2="60"></line>
-                                <line x1="25" y1="25" x2="36" y2="36"></line>
-                                <line x1="84" y1="84" x2="95" y2="95"></line>
-                                <line x1="25" y1="95" x2="36" y2="84"></line>
-                                <line x1="84" y1="36" x2="95" y2="25"></line>
-                            </svg>
-
-                        {% when 1 or 2 %}
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <circle cx="40" cy="38" r="17"></circle>
-                                <line x1="40" y1="11" x2="40" y2="18"></line>
-                                <line x1="15" y1="38" x2="22" y2="38"></line>
-                                <line x1="58" y1="38" x2="65" y2="38"></line>
-                                <path d="M26 94
-                                         C18 94 13 87 13 79
-                                         C13 70 20 63 29 63
-                                         C35 51 46 45 59 45
-                                         C74 45 85 55 88 69
-                                         C98 70 106 78 106 88
-                                         C106 99 98 105 87 105
-                                         H31
-                                         C21 105 13 101 13 94"></path>
-                            </svg>
-
-                        {% when 3 %}
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <path d="M24 91
-                                         C15 91 10 84 10 75
-                                         C10 65 18 57 28 57
-                                         C34 42 47 34 62 34
-                                         C80 34 94 47 96 64
-                                         C106 66 113 74 113 85
-                                         C113 97 104 105 92 105
-                                         H29
-                                         C18 105 10 100 10 91"></path>
-                            </svg>
-
-                        {% when 45 or 48 %}
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <line x1="18" y1="38" x2="102" y2="38"></line>
-                                <line x1="28" y1="55" x2="92" y2="55"></line>
-                                <line x1="15" y1="72" x2="105" y2="72"></line>
-                                <line x1="31" y1="89" x2="89" y2="89"></line>
-                            </svg>
-
-                        {% when 51 or 53 or 55 or 56 or 57 or 61 or 63 or 65 or 66 or 67 or 80 or 81 or 82 %}
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <path d="M22 68
-                                         C14 68 10 61 10 53
-                                         C10 44 18 36 27 36
-                                         C33 23 44 17 58 17
-                                         C74 17 86 28 88 42
-                                         C99 43 107 51 107 62
-                                         C107 72 99 79 88 79
-                                         H28
-                                         C18 79 10 75 10 68"></path>
-                                <line x1="35" y1="89" x2="29" y2="103"></line>
-                                <line x1="59" y1="89" x2="53" y2="103"></line>
-                                <line x1="83" y1="89" x2="77" y2="103"></line>
-                            </svg>
-
-                        {% when 71 or 73 or 75 or 77 or 85 or 86 %}
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <path d="M22 65
-                                         C14 65 10 58 10 50
-                                         C10 41 18 33 27 33
-                                         C33 21 44 15 58 15
-                                         C74 15 86 26 88 40
-                                         C99 41 107 49 107 60
-                                         C107 70 99 77 88 77
-                                         H28
-                                         C18 77 10 73 10 65"></path>
-                                <line x1="33" y1="89" x2="33" y2="105"></line>
-                                <line x1="25" y1="97" x2="41" y2="97"></line>
-                                <line x1="60" y1="89" x2="60" y2="105"></line>
-                                <line x1="52" y1="97" x2="68" y2="97"></line>
-                                <line x1="87" y1="89" x2="87" y2="105"></line>
-                                <line x1="79" y1="97" x2="95" y2="97"></line>
-                            </svg>
-
-                        {% when 95 or 96 or 99 %}
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <path d="M22 63
-                                         C14 63 10 56 10 48
-                                         C10 39 18 31 27 31
-                                         C33 19 44 13 58 13
-                                         C74 13 86 24 88 38
-                                         C99 39 107 47 107 58
-                                         C107 68 99 75 88 75
-                                         H28
-                                         C18 75 10 71 10 63"></path>
-                                <polyline points="62,78 48,98 61,98 52,113 77,89 63,89 72,78"></polyline>
-                            </svg>
-
-                        {% else %}
-                            <svg viewBox="0 0 120 120" class="weather-svg">
-                                <path d="M24 91
-                                         C15 91 10 84 10 75
-                                         C10 65 18 57 28 57
-                                         C34 42 47 34 62 34
-                                         C80 34 94 47 96 64
-                                         C106 66 113 74 113 85
-                                         C113 97 104 105 92 105
-                                         H29
-                                         C18 105 10 100 10 91"></path>
-                            </svg>
-
-                    {% endcase %}
-
+                    <img
+                        src="https://cdn.meteocons.com/latest/svg-static/monochrome/{{ icon }}.svg"
+                        alt="{{ day.weatherLabel }}"
+                    >
                 </div>
-
 
                 <div class="forecast-temp">
                     {{ day.maxTemp }}° / {{ day.minTemp }}°
                 </div>
 
                 <div class="forecast-rain">
-    {{ day.precipitationMm }} mm
-</div>
+                    {{ day.precipitationMm }} mm
+                </div>
 
             </article>
 
