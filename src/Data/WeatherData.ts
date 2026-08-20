@@ -3,7 +3,7 @@ export type WeatherDay = {
     dayName: string;
     weatherCode: number;
     weatherLabel: string;
-    iconDataUrl: string;
+    iconSvg: string;
     maxTemp: number;
     minTemp: number;
     precipitationMm: number;
@@ -16,7 +16,7 @@ export type WeatherData = {
         apparentTemperature: number;
         weatherCode: number;
         weatherLabel: string;
-        iconDataUrl: string;
+        iconSvg: string;
         windSpeed: number;
     };
     today: WeatherDay;
@@ -33,114 +33,66 @@ const iconCache = new Map<string, string>();
 
 function weatherInfo(code: number): { label: string; icon: string } {
     if (code === 0) {
-        return {
-            label: "Klart",
-            icon: "clear-day",
-        };
+        return { label: "Klart", icon: "clear-day" };
     }
 
     if (code === 1) {
-        return {
-            label: "For det meste klart",
-            icon: "partly-cloudy-day",
-        };
+        return { label: "For det meste klart", icon: "partly-cloudy-day" };
     }
 
     if (code === 2) {
-        return {
-            label: "Delvis skyet",
-            icon: "partly-cloudy-day",
-        };
+        return { label: "Delvis skyet", icon: "partly-cloudy-day" };
     }
 
     if (code === 3) {
-        return {
-            label: "Overskyet",
-            icon: "overcast",
-        };
+        return { label: "Overskyet", icon: "overcast" };
     }
 
     if ([45, 48].includes(code)) {
-        return {
-            label: "Tåke",
-            icon: "fog-day",
-        };
+        return { label: "Tåke", icon: "fog-day" };
     }
 
     if ([51, 53, 55, 56, 57].includes(code)) {
-        return {
-            label: "Yr",
-            icon: "drizzle",
-        };
+        return { label: "Yr", icon: "drizzle" };
     }
 
     if (code === 61) {
-        return {
-            label: "Lett regn",
-            icon: "drizzle",
-        };
+        return { label: "Lett regn", icon: "drizzle" };
     }
 
     if (code === 63) {
-        return {
-            label: "Regn",
-            icon: "rain",
-        };
+        return { label: "Regn", icon: "rain" };
     }
 
     if ([65, 66, 67].includes(code)) {
-        return {
-            label: "Kraftig regn",
-            icon: "extreme-rain",
-        };
+        return { label: "Kraftig regn", icon: "extreme-rain" };
     }
 
     if ([71, 73, 75, 77].includes(code)) {
-        return {
-            label: "Snø",
-            icon: "snow",
-        };
+        return { label: "Snø", icon: "snow" };
     }
 
     if (code === 80) {
-        return {
-            label: "Lette regnbyger",
-            icon: "partly-cloudy-day-rain",
-        };
+        return { label: "Lette regnbyger", icon: "partly-cloudy-day-rain" };
     }
 
     if (code === 81) {
-        return {
-            label: "Regnbyger",
-            icon: "rain",
-        };
+        return { label: "Regnbyger", icon: "rain" };
     }
 
     if (code === 82) {
-        return {
-            label: "Kraftige regnbyger",
-            icon: "extreme-rain",
-        };
+        return { label: "Kraftige regnbyger", icon: "extreme-rain" };
     }
 
     if ([85, 86].includes(code)) {
-        return {
-            label: "Snøbyger",
-            icon: "snow",
-        };
+        return { label: "Snøbyger", icon: "snow" };
     }
 
     if ([95, 96, 99].includes(code)) {
-        return {
-            label: "Torden",
-            icon: "thunderstorms-day-rain",
-        };
+        return { label: "Torden", icon: "thunderstorms-day-rain" };
     }
 
-    return {
-        label: "Ukjent",
-        icon: "overcast",
-    };
+    return { label: "Ukjent", icon: "overcast" };
 }
 
 function norwegianDay(dateString: string): string {
@@ -159,7 +111,7 @@ function norwegianDay(dateString: string): string {
     return names[date.getDay()];
 }
 
-async function getMeteoconDataUrl(iconName: string): Promise<string> {
+async function getMeteoconSvg(iconName: string): Promise<string> {
     const cached = iconCache.get(iconName);
 
     if (cached) {
@@ -168,36 +120,44 @@ async function getMeteoconDataUrl(iconName: string): Promise<string> {
 
     const url = `${METEOCONS_BASE}/${iconName}.svg`;
 
-    const response = await fetch(url);
+    try {
+        const response = await fetch(url);
 
-    if (!response.ok) {
+        if (!response.ok) {
+            console.error(
+                `Failed to fetch Meteocon "${iconName}": ${response.status}`
+            );
+
+            if (iconName !== "overcast") {
+                return getMeteoconSvg("overcast");
+            }
+
+            return "";
+        }
+
+        let svg = await response.text();
+
+        // Make monochrome icons explicitly black.
+        svg = svg.replaceAll("currentColor", "#000000");
+
+        // Remove XML declarations if present.
+        svg = svg.replace(/<\?xml[^>]*\?>/g, "");
+
+        iconCache.set(iconName, svg);
+
+        return svg;
+    } catch (error) {
         console.error(
-            `Failed to fetch Meteocon "${iconName}": ${response.status}`
+            `Failed to fetch Meteocon "${iconName}":`,
+            error
         );
 
         if (iconName !== "overcast") {
-            return getMeteoconDataUrl("overcast");
+            return getMeteoconSvg("overcast");
         }
 
         return "";
     }
-
-    let svg = await response.text();
-
-    /*
-     * Meteocons monochrome uses currentColor.
-     * Because the SVG is embedded as a data URL, explicitly force black
-     * so the Kindle render is deterministic.
-     */
-    svg = svg.replaceAll("currentColor", "#000000");
-
-    const encoded = Buffer.from(svg, "utf8").toString("base64");
-
-    const dataUrl = `data:image/svg+xml;base64,${encoded}`;
-
-    iconCache.set(iconName, dataUrl);
-
-    return dataUrl;
 }
 
 export async function getWeather(): Promise<WeatherData> {
@@ -228,17 +188,11 @@ export async function getWeather(): Promise<WeatherData> {
     );
 
     if (!response.ok) {
-        throw new Error(
-            `Open-Meteo error: ${response.status}`
-        );
+        throw new Error(`Open-Meteo error: ${response.status}`);
     }
 
     const data = await response.json();
 
-    /*
-     * First map weather data to ordinary JS objects.
-     * We add the SVG data URLs afterwards.
-     */
     const rawDays = data.daily.time.map(
         (date: string, index: number) => {
             const info = weatherInfo(
@@ -248,16 +202,18 @@ export async function getWeather(): Promise<WeatherData> {
             return {
                 date,
                 dayName: norwegianDay(date),
-                weatherCode:
-                    data.daily.weather_code[index],
+                weatherCode: data.daily.weather_code[index],
                 weatherLabel: info.label,
                 iconName: info.icon,
+
                 maxTemp: Math.round(
                     data.daily.temperature_2m_max[index]
                 ),
+
                 minTemp: Math.round(
                     data.daily.temperature_2m_min[index]
                 ),
+
                 precipitationMm:
                     Math.round(
                         (
@@ -275,8 +231,7 @@ export async function getWeather(): Promise<WeatherData> {
             dayName: day.dayName,
             weatherCode: day.weatherCode,
             weatherLabel: day.weatherLabel,
-            iconDataUrl:
-                await getMeteoconDataUrl(day.iconName),
+            iconSvg: await getMeteoconSvg(day.iconName),
             maxTemp: day.maxTemp,
             minTemp: day.minTemp,
             precipitationMm: day.precipitationMm,
@@ -287,8 +242,8 @@ export async function getWeather(): Promise<WeatherData> {
         data.current.weather_code
     );
 
-    const currentIconDataUrl =
-        await getMeteoconDataUrl(currentInfo.icon);
+    const currentIconSvg =
+        await getMeteoconSvg(currentInfo.icon);
 
     return {
         location: "Kalbakken",
@@ -297,15 +252,15 @@ export async function getWeather(): Promise<WeatherData> {
             temperature: Math.round(
                 data.current.temperature_2m
             ),
+
             apparentTemperature: Math.round(
                 data.current.apparent_temperature
             ),
-            weatherCode:
-                data.current.weather_code,
-            weatherLabel:
-                currentInfo.label,
-            iconDataUrl:
-                currentIconDataUrl,
+
+            weatherCode: data.current.weather_code,
+            weatherLabel: currentInfo.label,
+            iconSvg: currentIconSvg,
+
             windSpeed: Math.round(
                 data.current.wind_speed_10m
             ),
